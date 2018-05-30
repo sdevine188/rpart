@@ -136,6 +136,7 @@ get_node_stats <- function(data_updated_w_terminal_nodes_and_weights, tree_outpu
                 
                 
                 # now use reid's derivation to convert difference in domain/complement proportion/conf.int. into difference btw domain/overall
+                # ( one minus the weighted proportion in the domain ) times ( the difference between the rate in the domain and the rate in the complement )
                 current_node_stats <- current_node_stats %>%
                         mutate(p_diff_overall = (1 - (n_weighted / (n_weighted + n_weighted_complement))) * p_weighted_diff, 
                                lower_limit_p_diff_overall = (1 - (n_weighted / (n_weighted + n_weighted_complement))) * lower_limit_diff,
@@ -269,12 +270,12 @@ get_node_stats <- function(data_updated_w_terminal_nodes_and_weights, tree_outpu
         node_p_weighted_combined %>% data.frame()
         node_p_weighted_combined <- node_p_weighted_combined %>% 
                 mutate(se = ((upper_limit_p_weighted - lower_limit_p_weighted) / 
-                        (1.96 * 2)), is_p_weighted_the_min = ifelse(p_weighted < p_weighted_complement, 1, 0), 
+                        (1.96 * 2)), is_p_weighted_the_min = ifelse(p_weighted < (1 - p_weighted), 1, 0), 
                        coeff_of_variation = case_when(is_p_weighted_the_min == 1 ~ se / (p_weighted + .001),
-                                                      is_p_weighted_the_min == 0 ~ se / (p_weighted_complement + .001), TRUE ~ 0),
+                                                      is_p_weighted_the_min == 0 ~ se / ((1 - p_weighted) + .001), TRUE ~ 0),
                        unreliable_p_weighted = ifelse(obs_in_node < 15 & coeff_of_variation >= .3 & 
                                                         coeff_of_variation <= .5, 1, 0),
-                       suppressed_p_weighted = ifelse(obs_in_node < 15 & coeff_of_variation > .5, 1, 0)) %>%
+                       suppressed_p_weighted = ifelse(obs_in_node < 15 & coeff_of_variation > .5 | obs_in_node < 10, 1, 0)) %>%
                 select(-c(se, is_p_weighted_the_min))
         
         

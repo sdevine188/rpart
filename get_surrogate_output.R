@@ -1,4 +1,5 @@
-
+library(dplyr)
+library(stringr)
 
 
 # function to get surrogate splits for each node
@@ -102,6 +103,13 @@ get_surrogate_output <-
                                           " improve=", format(signif(x$splits[j, 3L], digits)),
                                           ", (", nn - x$splits[j, 1L], " missing)", sep = ""),
                                     sep = "\n")
+                                
+                                
+                                primary_split_part1 <- sname[j][1]
+                                # print(str_c("primary_split_part1 = ", primary_split_part1))
+                                primary_split_part2 <- temp[1]
+                                
+                                
                                 if (ff$nsurrogate[i] > 0L) {
                                         cat("  Surrogate splits:\n")
                                         j <- seq(1L + index[i] + ff$ncompete[i],
@@ -118,12 +126,37 @@ get_surrogate_output <-
                                                   ", (", x$splits[j, 1L], " split)", sep = ""),
                                             sep = "\n")
                                         
-                                        surrogate_tbl <- bind_rows(surrogate_tbl, tibble(node_path = sname[j], temp_value = temp, agreement = agree, adj = adj))
+                                        surrogate_tbl <- bind_rows(surrogate_tbl, tibble(node_number = id[i],
+                                                        primary_split_part1 = primary_split_part1, primary_split_part2 = primary_split_part2,
+                                                        surrogate_split_part1 = sname[j], surrogate_split_part2 = temp,
+                                                        primary_split_true_obs = sons.n[1L], primary_split_false_obs = sons.n[2L],
+                                                         surrogate_split_direction_when_true = temp,
+                                                        surrogate_agreement_w_primary_split = agree,
+                                                        surrogate_adjusted_agreement_w_primary_split = adj,
+                                                        count_of_obs_split_using_surrogate = x$splits[j, 1L]))
                                 }
                         }
                 }
                 cat("\n")
                 invisible(x)
                 print(x$frame)
+                
+                surrogate_tbl <- surrogate_tbl %>%
+                        mutate(surrogate_split_direction_when_true = ifelse(str_detect(string = surrogate_split_direction_when_true,
+                                pattern = "to the right"), "to the right", "to the left"),
+                               primary_split = str_c(primary_split_part1,
+                                                     str_replace(string = primary_split_part2, pattern = "to the right,|to the left,",
+                                                                 replacement = "")),
+                               surrogate_split = str_c(surrogate_split_part1,
+                                                 str_replace(string = surrogate_split_part2, pattern = "to the right,|to the left,",
+                                                 replacement = "")),
+                                majority_rule = ifelse(primary_split_true_obs > primary_split_false_obs, "primary_split_true",
+                                                      "primary_split_false"),
+                               surrogate_split_mimics = ifelse(surrogate_split_direction_when_true == "to the left",
+                                                               "primary_split", "negate_primary_split")) %>%
+                        select(node_number, primary_split, surrogate_split, primary_split_true_obs, primary_split_false_obs, majority_rule,
+                               surrogate_split_direction_when_true, surrogate_split_mimics,
+                               surrogate_agreement_w_primary_split, surrogate_adjusted_agreement_w_primary_split,
+                               count_of_obs_split_using_surrogate)
                 return(surrogate_tbl)
         }
